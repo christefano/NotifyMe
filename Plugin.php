@@ -8,9 +8,10 @@ class Plugin extends Base
 {
     public function initialize()
     {
-        $this->container['notifyMeAction'] = $this->container->factory(function($c) {
+        // Register as a shared service — one instance reused across all hooks.
+        $this->container['notifyMeAction'] = function($c) {
             return new \Kanboard\Plugin\NotifyMe\Action\NotifyMeAction($c);
-        });
+        };
 
         $action = $this->container['notifyMeAction'];
 
@@ -60,7 +61,7 @@ class Plugin extends Base
 
     public function getPluginVersion()
     {
-        return '1.0';
+        return '1.0.1';
     }
 
     public function getPluginHomepage()
