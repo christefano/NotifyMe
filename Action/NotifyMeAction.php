@@ -3,230 +3,374 @@
 namespace Kanboard\Plugin\NotifyMe\Action;
 
 use Kanboard\Core\Base;
+use Kanboard\Event\AuthFailureEvent;
+use Kanboard\Event\GenericEvent;
+use Kanboard\Model\TaskLinkModel;
 
 class NotifyMeAction extends Base
 {
     /**
      * Whitelist of allowed template types to prevent path traversal.
-     * Fixes: #2 template path injection.
      */
     private $allowedTypes = array(
-        'task', 'subtask', 'comment', 'file', 'timetracking', 'category', 'project',
+        'task', 'subtask', 'comment', 'file', 'task_link', 'project_file', 'auth_failure', 'wiki',
     );
 
     /**
-     * Maps task-level actions to the user-ID fields that should be notified.
+     * Maps event names to translation keys used as the notification's action label.
      */
-    private $taskEventUserFields = array(
-        'task_created'        => array('creator_id'),
-        'task_updated'        => array('creator_id', 'owner_id'),
-        'task_assigned'       => array('owner_id'),
-        'task_closed'         => array('creator_id'),
-        'task_opened'         => array('creator_id'),
-        'task_moved_column'   => array('creator_id'),
-        'task_moved_swimlane' => array('creator_id'),
+    private $actionLabels = array(
+        'task.create'                      => 'task_created',
+        'task.update'                      => 'task_updated',
+        'task.close'                       => 'task_closed',
+        'task.open'                        => 'task_opened',
+        'task.move.column'                 => 'task_moved_column',
+        'task.move.swimlane'               => 'task_moved_swimlane',
+        'task.assignee_change'             => 'task_assignee_changed',
+        'subtask.create'                   => 'subtask_created',
+        'subtask.update'                   => 'subtask_updated',
+        'subtask.delete'                   => 'subtask_deleted',
+        'comment.create'                   => 'comment_created',
+        'comment.update'                   => 'comment_updated',
+        'comment.delete'                   => 'comment_deleted',
+        'task.file.create'                 => 'file_attached',
+        'task.file.destroy'                => 'file_deleted',
+        'task_internal_link.create_update' => 'task_link_updated',
+        'task_internal_link.delete'        => 'task_link_deleted',
+        'project.file.create'              => 'project_file_attached',
+        'project.file.destroy'             => 'project_file_deleted',
+        'auth.failure'                     => 'auth_failure',
+        'wikipage.create'                  => 'wiki_page_created',
+        'wikipage.update'                  => 'wiki_page_updated',
+        'wikipage.delete'                  => 'wiki_page_deleted',
     );
 
     // ---------------------------------------------------------------
-    // Public hook entry points (kept as thin one-liners for the hook
-    // system which requires concrete method names).
-    // Fixes: #7 — collapsed to single-line delegators.
+    // Public hook entry points (thin one-liners; the dispatcher requires
+    // concrete method names per registration).
     // ---------------------------------------------------------------
 
-    public function onTaskCreate(array $data)          { return $this->handleTaskEvent($data, 'task_created'); }
-    public function onTaskUpdate(array $data)          { return $this->handleTaskEvent($data, 'task_updated'); }
-    public function onTaskAssigneeChange(array $data)  { return $this->handleTaskEvent($data, 'task_assigned'); }
-    public function onTaskClose(array $data)           { return $this->handleTaskEvent($data, 'task_closed'); }
-    public function onTaskOpen(array $data)            { return $this->handleTaskEvent($data, 'task_opened'); }
-    public function onTaskMoveColumn(array $data)      { return $this->handleTaskEvent($data, 'task_moved_column'); }
-    public function onTaskMoveSwimlane(array $data)    { return $this->handleTaskEvent($data, 'task_moved_swimlane'); }
-    public function onSubtaskCreate(array $data)       { return $this->handleSubtaskEvent($data, 'subtask_created'); }
-    public function onSubtaskUpdate(array $data)       { return $this->handleSubtaskEvent($data, 'subtask_updated'); }
-    public function onSubtaskDelete(array $data)       { return $this->handleSubtaskEvent($data, 'subtask_deleted'); }
-    public function onCommentCreate(array $data)       { return $this->handleCommentEvent($data, 'comment_created'); }
-    public function onCommentUpdate(array $data)       { return $this->handleCommentEvent($data, 'comment_updated'); }
-    public function onCommentDelete(array $data)       { return $this->handleCommentEvent($data, 'comment_deleted'); }
-    public function onFileAttached(array $data)        { return $this->handleTaskRelatedEvent($data, 'file_attached', 'file'); }
-    public function onFileDeleted(array $data)         { return $this->handleTaskRelatedEvent($data, 'file_deleted', 'file'); }
-    public function onTimeTrackingCreated(array $data) { return $this->handleTaskRelatedEvent($data, 'time_tracking_created', 'timetracking'); }
-    public function onTimeTrackingDeleted(array $data) { return $this->handleTaskRelatedEvent($data, 'time_tracking_deleted', 'timetracking'); }
-    public function onProjectCreated(array $data)      { return $this->handleProjectEvent($data, 'project_created'); }
-    public function onProjectRemoved(array $data)      { return $this->handleProjectEvent($data, 'project_removed'); }
-    public function onCategoryAdded(array $data)       { return $this->handleTaskRelatedEvent($data, 'category_added', 'category'); }
-    public function onCategoryRemoved(array $data)     { return $this->handleTaskRelatedEvent($data, 'category_removed', 'category'); }
+    public function onTaskCreate(GenericEvent $event, $eventName)         { return $this->handleTaskEvent($event, $eventName); }
+    public function onTaskUpdate(GenericEvent $event, $eventName)         { return $this->handleTaskEvent($event, $eventName); }
+    public function onTaskClose(GenericEvent $event, $eventName)          { return $this->handleTaskEvent($event, $eventName); }
+    public function onTaskOpen(GenericEvent $event, $eventName)           { return $this->handleTaskEvent($event, $eventName); }
+    public function onTaskMoveColumn(GenericEvent $event, $eventName)     { return $this->handleTaskEvent($event, $eventName); }
+    public function onTaskMoveSwimlane(GenericEvent $event, $eventName)   { return $this->handleTaskEvent($event, $eventName); }
+    public function onTaskAssigneeChange(GenericEvent $event, $eventName) { return $this->handleTaskEvent($event, $eventName); }
+    public function onSubtaskCreate(GenericEvent $event, $eventName)      { return $this->handleSubtaskEvent($event, $eventName); }
+    public function onSubtaskUpdate(GenericEvent $event, $eventName)      { return $this->handleSubtaskEvent($event, $eventName); }
+    public function onSubtaskDelete(GenericEvent $event, $eventName)      { return $this->handleSubtaskEvent($event, $eventName); }
+    public function onCommentCreate(GenericEvent $event, $eventName)      { return $this->handleCommentEvent($event, $eventName); }
+    public function onCommentUpdate(GenericEvent $event, $eventName)      { return $this->handleCommentEvent($event, $eventName); }
+    public function onCommentDelete(GenericEvent $event, $eventName)      { return $this->handleCommentEvent($event, $eventName); }
+    public function onTaskFileCreate(GenericEvent $event, $eventName)     { return $this->handleTaskFileEvent($event, $eventName); }
+    public function onTaskFileDestroy(GenericEvent $event, $eventName)    { return $this->handleTaskFileEvent($event, $eventName); }
+    public function onTaskLinkCreateUpdate(GenericEvent $event, $eventName) { return $this->handleTaskLinkEvent($event, $eventName); }
+    public function onTaskLinkDelete(GenericEvent $event, $eventName)     { return $this->handleTaskLinkEvent($event, $eventName); }
+    public function onProjectFileCreate(GenericEvent $event, $eventName)  { return $this->handleProjectFileEvent($event, $eventName); }
+    public function onProjectFileDestroy(GenericEvent $event, $eventName) { return $this->handleProjectFileEvent($event, $eventName); }
+    public function onAuthFailure(AuthFailureEvent $event, $eventName)    { return $this->handleAuthFailureEvent($event, $eventName); }
+    public function onWikiPageCreate(GenericEvent $event, $eventName)     { return $this->handleWikiEvent($event, $eventName); }
+    public function onWikiPageUpdate(GenericEvent $event, $eventName)     { return $this->handleWikiEvent($event, $eventName); }
+    public function onWikiPageDelete(GenericEvent $event, $eventName)     { return $this->handleWikiEvent($event, $eventName); }
 
     // ---------------------------------------------------------------
     // Handlers
     // ---------------------------------------------------------------
 
-    private function handleTaskEvent(array $data, $action)
+    private function handleTaskEvent(GenericEvent $event, $eventName)
     {
-        $task = $this->resolveTask($data);
-        if (!$task) {
+        $task = $event['task'];
+        if (empty($task)) {
             return false;
         }
 
-        $project = $this->resolveProject($task['project_id']);
+        $projectId = (int) $task['project_id'];
+        $project   = $this->resolveProject($projectId);
         if (!$project) {
             return false;
         }
 
-        // Collect user IDs from the event map, plus the acting user for updates.
-        // Fixes: #5 — deduplicate before sending.
-        $userIds = array();
-        foreach ($this->taskEventUserFields[$action] as $field) {
-            if (!empty($task[$field])) {
-                $userIds[] = (int) $task[$field];
-            }
-        }
-
-        if ($action === 'task_updated' && !empty($data['user_id'])) {
-            $userIds[] = (int) $data['user_id'];
-        }
-
-        return $this->notifyUsers(array_unique($userIds), $task, $project, $action, 'task', null);
-    }
-
-    private function handleSubtaskEvent(array $data, $action)
-    {
-        // Fixes: #10 — consistent use of isset + cast everywhere.
-        $subtaskId = isset($data['subtask_id']) ? (int) $data['subtask_id'] : 0;
-        $taskId    = isset($data['task_id'])    ? (int) $data['task_id']    : 0;
-
-        if (!$subtaskId || !$taskId) {
-            return false;
-        }
-
-        // Fixes: #11 — for deleted subtasks, build a safe phantom with
-        // all keys downstream templates may access.
-        if ($action === 'subtask_deleted') {
-            $subtask = array('id' => $subtaskId, 'task_id' => $taskId, 'title' => '');
-        } else {
-            $subtask = $this->subtaskModel->getById($subtaskId);
-            if (!$subtask || empty($subtask['task_id'])) {
-                return false;
-            }
-        }
-
-        $task = $this->resolveTask(array('task_id' => $subtask['task_id']));
-        if (!$task) {
-            return false;
-        }
-
-        $project = $this->resolveProject($task['project_id']);
-        if (!$project) {
-            return false;
-        }
-
-        $userIds = $this->collectTaskUserIds($task);
-
-        return $this->notifyUsers($userIds, $task, $project, $action, 'subtask', $subtask);
-    }
-
-    private function handleCommentEvent(array $data, $action)
-    {
-        $commentId = isset($data['comment_id']) ? (int) $data['comment_id'] : 0;
-        if (!$commentId) {
-            return false;
-        }
-
-        // Fixes: #11 — safe phantom for deleted comments.
-        if ($action === 'comment_deleted') {
-            $comment = array(
-                'id'      => $commentId,
-                'user_id' => isset($data['user_id']) ? (int) $data['user_id'] : 0,
-                'text'    => '',
-                'task_id' => isset($data['task_id']) ? (int) $data['task_id'] : 0,
-            );
-            $taskId = $comment['task_id'];
-        } else {
-            $comment = $this->commentModel->getById($commentId);
-            $taskId  = isset($comment['task_id']) ? (int) $comment['task_id'] : 0;
-        }
-
-        if (!$taskId) {
-            return false;
-        }
-
-        $task = $this->resolveTask(array('task_id' => $taskId));
-        if (!$task) {
-            return false;
-        }
-
-        $project = $this->resolveProject($task['project_id']);
-        if (!$project) {
-            return false;
-        }
-
-        // Fixes: #5 — deduplicate creator + owner + commenter.
-        $userIds = $this->collectTaskUserIds($task);
-        $commenterId = isset($comment['user_id']) ? (int) $comment['user_id'] : 0;
-        if ($commenterId) {
-            $userIds[] = $commenterId;
-        }
-
-        return $this->notifyUsers(array_unique($userIds), $task, $project, $action, 'comment', $comment);
-    }
-
-    private function handleTaskRelatedEvent(array $data, $action, $type)
-    {
-        $task = $this->resolveTask($data);
-        if (!$task) {
-            return false;
-        }
-
-        $project = $this->resolveProject($task['project_id']);
-        if (!$project) {
-            return false;
-        }
-
-        // Fixes: #5 — deduplicate creator + owner + acting user.
-        $userIds = $this->collectTaskUserIds($task);
-        if (!empty($data['user_id'])) {
-            $userIds[] = (int) $data['user_id'];
-        }
-
-        return $this->notifyUsers(array_unique($userIds), $task, $project, $action, $type, $data);
-    }
-
-    private function handleProjectEvent(array $data, $action)
-    {
-        $userId = isset($data['user_id']) ? (int) $data['user_id'] : 0;
-        if (!$userId) {
-            return false;
-        }
-
-        $user = $this->userModel->getById($userId);
-        if (!$user || empty($user['email'])) {
-            return false;
-        }
-
-        $projectId = isset($data['project_id']) ? (int) $data['project_id'] : 0;
-        $project   = $projectId ? $this->resolveProject($projectId) : null;
-        if (!$project) {
-            $project = array(
-                'id'   => $projectId,
-                'name' => isset($data['project_name']) ? $data['project_name'] : 'Unknown',
-            );
-        }
-
-        // Fixes: #1 — escape project name in email subject.
-        $subject = sprintf(
-            t('[NotifyMe] Project: %s'),
-            htmlspecialchars($project['name'], ENT_QUOTES, 'UTF-8')
+        return $this->deliver(
+            $this->userSession->getId(),
+            $projectId,
+            'task',
+            $eventName,
+            $this->buildSubject($project['name'], $task['title'], $task['id']),
+            array(
+                'task'     => $task,
+                'project'  => $project,
+                'action'   => $this->actionLabel($eventName),
+                'task_url' => $this->buildTaskUrl($projectId, $task['id']),
+            ),
+            $event->getAll()
         );
+    }
 
-        $html = $this->renderTemplate('project', array(
-            'user'    => $user,
-            'project' => $project,
-            'action'  => $action,
+    private function handleSubtaskEvent(GenericEvent $event, $eventName)
+    {
+        $subtask = $event['subtask'];
+        $task    = $event['task'];
+        if (empty($subtask) || empty($task)) {
+            return false;
+        }
+
+        $projectId = (int) $task['project_id'];
+        $project   = $this->resolveProject($projectId);
+        if (!$project) {
+            return false;
+        }
+
+        return $this->deliver(
+            $this->userSession->getId(),
+            $projectId,
+            'subtask',
+            $eventName,
+            $this->buildSubject($project['name'], $task['title'], $task['id']),
+            array(
+                'task'     => $task,
+                'project'  => $project,
+                'action'   => $this->actionLabel($eventName),
+                'task_url' => $this->buildTaskUrl($projectId, $task['id']),
+                'context'  => $subtask,
+            ),
+            $event->getAll()
+        );
+    }
+
+    private function handleCommentEvent(GenericEvent $event, $eventName)
+    {
+        $comment = $event['comment'];
+        $task    = $event['task'];
+        if (empty($comment) || empty($task)) {
+            return false;
+        }
+
+        $projectId = (int) $task['project_id'];
+        $project   = $this->resolveProject($projectId);
+        if (!$project) {
+            return false;
+        }
+
+        return $this->deliver(
+            $this->userSession->getId(),
+            $projectId,
+            'comment',
+            $eventName,
+            $this->buildSubject($project['name'], $task['title'], $task['id']),
+            array(
+                'task'     => $task,
+                'project'  => $project,
+                'action'   => $this->actionLabel($eventName),
+                'task_url' => $this->buildTaskUrl($projectId, $task['id']),
+                'context'  => $comment,
+            ),
+            $event->getAll()
+        );
+    }
+
+    private function handleTaskFileEvent(GenericEvent $event, $eventName)
+    {
+        $file = $event['file'];
+        $task = $event['task'];
+        if (empty($file) || empty($task)) {
+            return false;
+        }
+
+        $projectId = (int) $task['project_id'];
+        $project   = $this->resolveProject($projectId);
+        if (!$project) {
+            return false;
+        }
+
+        return $this->deliver(
+            $this->userSession->getId(),
+            $projectId,
+            'file',
+            $eventName,
+            $this->buildSubject($project['name'], $task['title'], $task['id']),
+            array(
+                'task'     => $task,
+                'project'  => $project,
+                'action'   => $this->actionLabel($eventName),
+                'task_url' => $this->buildTaskUrl($projectId, $task['id']),
+                'context'  => $file,
+            ),
+            $event->getAll()
+        );
+    }
+
+    private function handleTaskLinkEvent(GenericEvent $event, $eventName)
+    {
+        $taskLink = $event['task_link'];
+        $task     = $event['task'];
+        if (empty($taskLink) || empty($task)) {
+            return false;
+        }
+
+        // TaskLinkModel::create()/update() dispatch this event once per side
+        // of the link (A-to-B, then B-to-A). Handle exactly one side so the
+        // actor gets one notification per action instead of two; the email
+        // includes both tasks either way.
+        if ($eventName === TaskLinkModel::EVENT_CREATE_UPDATE
+            && (int) $taskLink['task_id'] > (int) $taskLink['opposite_task_id']
+        ) {
+            return false;
+        }
+
+        $projectId = (int) $task['project_id'];
+        $project   = $this->resolveProject($projectId);
+        if (!$project) {
+            return false;
+        }
+
+        $oppositeTask = !empty($taskLink['opposite_task_id'])
+            ? $this->taskModel->getById($taskLink['opposite_task_id'])
+            : null;
+
+        return $this->deliver(
+            $this->userSession->getId(),
+            $projectId,
+            'task_link',
+            $eventName,
+            $this->buildSubject($project['name'], $task['title'], $task['id']),
+            array(
+                'task'          => $task,
+                'project'       => $project,
+                'action'        => $this->actionLabel($eventName),
+                'task_url'      => $this->buildTaskUrl($projectId, $task['id']),
+                'context'       => $taskLink,
+                'opposite_task' => $oppositeTask ?: null,
+            ),
+            $event->getAll()
+        );
+    }
+
+    /**
+     * project.file.* has no web-notification render path in core:
+     * NotificationModel::getIteratorBuilder() wires no builder for it, and
+     * WebNotificationController::redirect() always targets TaskViewController.
+     * A web entry here would only ever show "Notification" linking to task 0,
+     * so this event is email-only.
+     */
+    private function handleProjectFileEvent(GenericEvent $event, $eventName)
+    {
+        $file    = $event['file'];
+        $project = $event['project'];
+        if (empty($file) || empty($project)) {
+            return false;
+        }
+
+        $projectId = (int) $project['id'];
+
+        return $this->deliver(
+            $this->userSession->getId(),
+            $projectId,
+            'project_file',
+            $eventName,
+            sprintf('[%s] %s', $project['name'], $file['name']),
+            array(
+                'project' => $project,
+                'action'  => $this->actionLabel($eventName),
+                'context' => $file,
+            ),
+            null
+        );
+    }
+
+    /**
+     * auth.failure has no logged-in actor and no project context: look up the
+     * attempted username and notify that account if it resolves to a real,
+     * active user. A disabled account has nobody meaningfully protected by
+     * being notified, so it's excluded. Repeated failures against one
+     * username are bounded by core's own bruteforce lockout
+     * (UserLockingModel, default 6 attempts / 15 minutes); this plugin
+     * relies on that instead of reimplementing rate limiting.
+     *
+     * No web-notification entry: like project.file.* above, core has no
+     * title builder or redirect target for auth.failure.
+     */
+    private function handleAuthFailureEvent(AuthFailureEvent $event, $eventName)
+    {
+        $username = $event->getUsername();
+        if ($username === '') {
+            return false;
+        }
+
+        $user = $this->userModel->getByUsername($username);
+        if (empty($user) || empty($user['is_active'])) {
+            return false;
+        }
+
+        if (empty($user['email'])) {
+            return false;
+        }
+
+        $html = $this->renderTemplate('auth_failure', array(
+            'user'     => $user,
+            'username' => $username,
+            'action'   => $this->actionLabel($eventName),
         ));
 
         if ($html === false) {
             return false;
         }
 
-        return $this->sendEmail($user, $subject, $html, $action);
+        $subject = sprintf('[NotifyMe] %s', t($this->actionLabel($eventName)));
+
+        return $this->sendEmail($user, $subject, $html, $eventName);
+    }
+
+    /**
+     * Third-party Wiki plugin (funktechno/kanboard-plugin-wiki) support, if
+     * installed. Listens on literal event-name strings and not the plugin's
+     * own model constants, so NotifyMe has no hard dependency on Wiki being
+     * present; if it isn't, these events simply never fire.
+     *
+     * wikipage.create fires before the row is persisted, so $wiki has no
+     * 'id' yet; the link falls back to the project's wiki index instead of
+     * the page itself. wikipage.update fires with the pre-update row, so
+     * title/content reflect the page's state before this edit, not what was
+     * just saved; do not render $wiki['content'] here, and do not claim the
+     * shown title is current.
+     *
+     * No web-notification path exists for these events, same reason as
+     * project.file.* and auth.failure above: core's
+     * NotificationModel::getIteratorBuilder() wires no builder for Wiki, so
+     * this is email-only.
+     */
+    private function handleWikiEvent(GenericEvent $event, $eventName)
+    {
+        $wiki    = $event['wiki'];
+        $project = $event['project'];
+        if (empty($wiki) || empty($project)) {
+            return false;
+        }
+
+        $projectId = (int) $project['id'];
+        $wikiUrl   = !empty($wiki['id'])
+            ? $this->helper->url->to('WikiController', 'detail', array(
+                'project_id' => $projectId,
+                'wiki_id'    => $wiki['id'],
+            ), '', true)
+            : $this->helper->url->to('WikiController', 'show', array(
+                'project_id' => $projectId,
+            ), '', true);
+
+        return $this->deliver(
+            $this->userSession->getId(),
+            $projectId,
+            'wiki',
+            $eventName,
+            sprintf('[%s] %s', $project['name'], $wiki['title']),
+            array(
+                'wiki'     => $wiki,
+                'project'  => $project,
+                'action'   => $this->actionLabel($eventName),
+                'wiki_url' => $wikiUrl,
+            ),
+            null
+        );
     }
 
     // ---------------------------------------------------------------
@@ -234,22 +378,7 @@ class NotifyMeAction extends Base
     // ---------------------------------------------------------------
 
     /**
-     * Resolve a task from event data, returning the full task array or null.
-     * Fixes: #4 — single extraction point; callers don't duplicate lookups.
-     */
-    private function resolveTask(array $data)
-    {
-        $taskId = isset($data['task_id']) ? (int) $data['task_id'] : 0;
-        if (!$taskId) {
-            return null;
-        }
-
-        return $this->taskModel->getById($taskId) ?: null;
-    }
-
-    /**
      * Resolve a project by ID, returning the full project array or null.
-     * Fixes: #4 — single extraction point.
      */
     private function resolveProject($projectId)
     {
@@ -261,78 +390,62 @@ class NotifyMeAction extends Base
         return $this->projectModel->getById($projectId) ?: null;
     }
 
-    /**
-     * Collect deduplicated user IDs from a task's creator and owner.
-     * Fixes: #5 — central dedup, #10 — consistent empty() checks.
-     */
-    private function collectTaskUserIds(array $task)
+    private function buildTaskUrl($projectId, $taskId)
     {
-        $ids = array();
-
-        if (!empty($task['creator_id'])) {
-            $ids[] = (int) $task['creator_id'];
-        }
-        if (!empty($task['owner_id'])) {
-            $ids[] = (int) $task['owner_id'];
-        }
-
-        return array_unique($ids);
+        return $this->helper->url->to('TaskViewController', 'show', array(
+            'project_id' => $projectId,
+            'task_id'    => $taskId,
+        ), '', true);
     }
 
     /**
-     * Send notifications to a deduplicated set of user IDs.
-     * Fixes: #5 — single send per user, #9 — verifies project membership.
+     * Email subjects are a plain-text header, not HTML: no htmlspecialchars
+     * here, matching how core's own MailNotification::getMailSubject() builds
+     * subjects from raw project/task names.
      */
-    private function notifyUsers(array $userIds, array $task, array $project, $action, $type, $context)
+    private function buildSubject($projectName, $taskTitle, $taskId)
     {
-        $result = true;
+        return sprintf('[%s] %s (#%d)', $projectName, $taskTitle, (int) $taskId);
+    }
 
-        // Fixes: #9 — pre-fetch project member IDs for authorization.
-        // Falls back to allowing all if the permission model is unavailable.
-        $projectUserIds = array();
-        if (isset($this->projectPermissionModel)) {
-            $projectUserIds = $this->projectPermissionModel->getActiveUserIds($project['id']);
+    private function actionLabel($eventName)
+    {
+        return isset($this->actionLabels[$eventName]) ? $this->actionLabels[$eventName] : $eventName;
+    }
+
+    /**
+     * Resolve the recipient (the acting user), gate on project membership,
+     * render and send the email, then record the web notification unless
+     * $webEventData is null (no render path exists for that event type; see
+     * handleProjectFileEvent/handleAuthFailureEvent).
+     */
+    private function deliver($userId, $projectId, $type, $eventName, $subject, array $templateVars, $webEventData)
+    {
+        $userId = (int) $userId;
+        if (!$userId || !$this->projectPermissionModel->isMember($projectId, $userId)) {
+            return false;
         }
 
-        foreach ($userIds as $userId) {
-            // Fixes: #9 — skip users who no longer have access to the project.
-            if (!empty($projectUserIds) && !in_array($userId, $projectUserIds, true)) {
-                continue;
-            }
+        $user = $this->userModel->getById($userId);
+        if (empty($user)) {
+            return false;
+        }
 
-            $user = $this->userModel->getById($userId);
-            if (!$user || empty($user['email'])) {
-                continue;
-            }
+        $result = true;
 
-            // Fixes: #1 — escape dynamic values in email subject line.
-            $subject = sprintf(
-                '[%s] %s (#%d)',
-                htmlspecialchars($project['name'], ENT_QUOTES, 'UTF-8'),
-                htmlspecialchars($task['title'], ENT_QUOTES, 'UTF-8'),
-                (int) $task['id']
-            );
-
-            $taskUrl = $this->helper->url->absoluteUrl('task', 'show', array(
-                'project_id' => $task['project_id'],
-                'task_id'    => $task['id'],
-            ));
-
-            $html = $this->renderTemplate($type, array(
-                'user'     => $user,
-                'task'     => $task,
-                'project'  => $project,
-                'action'   => $action,
-                'context'  => $context,
-                'task_url' => $taskUrl,
-            ));
+        if (!empty($user['email'])) {
+            $html = $this->renderTemplate($type, array_merge($templateVars, array('user' => $user)));
 
             if ($html === false) {
                 $result = false;
-                continue;
+            } else {
+                $result = $this->sendEmail($user, $subject, $html, $eventName);
             }
+        }
 
-            $result = $this->sendEmail($user, $subject, $html, $action) && $result;
+        // Web channel fires independently of the email outcome.
+        if ($webEventData !== null) {
+            $this->userUnreadNotificationModel->create($userId, $eventName, $webEventData);
         }
 
         return $result;
@@ -340,7 +453,6 @@ class NotifyMeAction extends Base
 
     /**
      * Render a notification template by type, with whitelist validation.
-     * Fixes: #2 — rejects any type not in $this->allowedTypes.
      *
      * @return string|false  Rendered HTML, or false on invalid type.
      */
@@ -359,7 +471,7 @@ class NotifyMeAction extends Base
     /**
      * Send an email, catching transport errors.
      */
-    private function sendEmail(array $user, $subject, $html, $action)
+    private function sendEmail(array $user, $subject, $html, $eventName)
     {
         try {
             $this->emailClient->send(
@@ -372,7 +484,7 @@ class NotifyMeAction extends Base
         } catch (\Exception $e) {
             $this->logger->error('NotifyMe: Email send failed', array(
                 'user_id' => $user['id'],
-                'action'  => $action,
+                'event'   => $eventName,
                 'error'   => $e->getMessage(),
             ));
             return false;

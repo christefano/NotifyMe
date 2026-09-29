@@ -3,8 +3,8 @@
 ## Installation
 
 1. Extract `NotifyMe.zip` to `/path/to/kanboard/plugins/NotifyMe/`
-2. É
-3. Profit! All users will receive notifications about their own actions
+2. Restart PHP-FPM (or your webserver) if Kanboard's plugin cache does not pick up the new files
+3. All users will receive notifications about their own actions
 
 
 ## Compatibility
