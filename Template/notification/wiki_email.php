@@ -3,4 +3,4 @@
 <p><?php echo t('Wiki page'); ?>: <strong><?php echo htmlspecialchars($wiki['title'], ENT_QUOTES, 'UTF-8'); ?></strong></p>
 <p><a href="<?php echo htmlspecialchars($wiki_url, ENT_QUOTES, 'UTF-8'); ?>"><?php echo t('View wiki page'); ?></a></p>
 <hr>
-<p><?php echo t('This is an automated notification from Kanboard.'); ?></p>
+<p><?php echo \Kanboard\Plugin\NotifyMe\Product::footer(); ?></p>

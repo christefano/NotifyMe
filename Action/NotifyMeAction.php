@@ -17,32 +17,34 @@ class NotifyMeAction extends Base
     );
 
     /**
-     * Maps event names to translation keys used as the notification's action label.
+     * Maps event names to the notification's action label. The label is also
+     * the translation key, so a language without a translation shows English
+     * and not a raw key.
      */
     private $actionLabels = array(
-        'task.create'                      => 'task_created',
-        'task.update'                      => 'task_updated',
-        'task.close'                       => 'task_closed',
-        'task.open'                        => 'task_opened',
-        'task.move.column'                 => 'task_moved_column',
-        'task.move.swimlane'               => 'task_moved_swimlane',
-        'task.assignee_change'             => 'task_assignee_changed',
-        'subtask.create'                   => 'subtask_created',
-        'subtask.update'                   => 'subtask_updated',
-        'subtask.delete'                   => 'subtask_deleted',
-        'comment.create'                   => 'comment_created',
-        'comment.update'                   => 'comment_updated',
-        'comment.delete'                   => 'comment_deleted',
-        'task.file.create'                 => 'file_attached',
-        'task.file.destroy'                => 'file_deleted',
-        'task_internal_link.create_update' => 'task_link_updated',
-        'task_internal_link.delete'        => 'task_link_deleted',
-        'project.file.create'              => 'project_file_attached',
-        'project.file.destroy'             => 'project_file_deleted',
-        'auth.failure'                     => 'auth_failure',
-        'wikipage.create'                  => 'wiki_page_created',
-        'wikipage.update'                  => 'wiki_page_updated',
-        'wikipage.delete'                  => 'wiki_page_deleted',
+        'task.create'                      => 'Task created',
+        'task.update'                      => 'Task updated',
+        'task.close'                       => 'Task closed',
+        'task.open'                        => 'Task opened',
+        'task.move.column'                 => 'Task moved to another column',
+        'task.move.swimlane'               => 'Task moved to another swimlane',
+        'task.assignee_change'             => 'Task assignee changed',
+        'subtask.create'                   => 'Subtask created',
+        'subtask.update'                   => 'Subtask updated',
+        'subtask.delete'                   => 'Subtask deleted',
+        'comment.create'                   => 'New comment',
+        'comment.update'                   => 'Comment updated',
+        'comment.delete'                   => 'Comment deleted',
+        'task.file.create'                 => 'File attached',
+        'task.file.destroy'                => 'File deleted',
+        'task_internal_link.create_update' => 'Task link created or updated',
+        'task_internal_link.delete'        => 'Task link deleted',
+        'project.file.create'              => 'File attached to project',
+        'project.file.destroy'             => 'File deleted from project',
+        'auth.failure'                     => 'Failed login attempt on your username',
+        'wikipage.create'                  => 'Wiki page created',
+        'wikipage.update'                  => 'Wiki page updated',
+        'wikipage.delete'                  => 'Wiki page deleted',
     );
 
     // ---------------------------------------------------------------
@@ -96,12 +98,15 @@ class NotifyMeAction extends Base
             $projectId,
             'task',
             $eventName,
-            $this->buildSubject($project['name'], $task['title'], $task['id']),
+            $this->buildSubject($project['name'], $task['title'], $task['id'], $eventName),
             array(
                 'task'     => $task,
                 'project'  => $project,
                 'action'   => $this->actionLabel($eventName),
                 'task_url' => $this->buildTaskUrl($projectId, $task['id']),
+                // What changed, rendered by core's task/changes partial as in
+                // core's own update email. Only task.update lists changes.
+                'changes'  => $eventName === 'task.update' && !empty($event['changes']) ? $event['changes'] : array(),
             ),
             $event->getAll()
         );
@@ -126,7 +131,7 @@ class NotifyMeAction extends Base
             $projectId,
             'subtask',
             $eventName,
-            $this->buildSubject($project['name'], $task['title'], $task['id']),
+            $this->buildSubject($project['name'], $task['title'], $task['id'], $eventName),
             array(
                 'task'     => $task,
                 'project'  => $project,
@@ -157,7 +162,7 @@ class NotifyMeAction extends Base
             $projectId,
             'comment',
             $eventName,
-            $this->buildSubject($project['name'], $task['title'], $task['id']),
+            $this->buildSubject($project['name'], $task['title'], $task['id'], $eventName),
             array(
                 'task'     => $task,
                 'project'  => $project,
@@ -188,7 +193,7 @@ class NotifyMeAction extends Base
             $projectId,
             'file',
             $eventName,
-            $this->buildSubject($project['name'], $task['title'], $task['id']),
+            $this->buildSubject($project['name'], $task['title'], $task['id'], $eventName),
             array(
                 'task'     => $task,
                 'project'  => $project,
@@ -208,14 +213,24 @@ class NotifyMeAction extends Base
             return false;
         }
 
+        $oppositeTask = !empty($taskLink['opposite_task_id'])
+            ? $this->taskModel->getById($taskLink['opposite_task_id'])
+            : null;
+
         // TaskLinkModel::create()/update() dispatch this event once per side
         // of the link (A-to-B, then B-to-A). Handle exactly one side so the
         // actor gets one notification per action instead of two; the email
-        // includes both tasks either way.
-        if ($eventName === TaskLinkModel::EVENT_CREATE_UPDATE
-            && (int) $taskLink['task_id'] > (int) $taskLink['opposite_task_id']
-        ) {
-            return false;
+        // includes both tasks either way. Keep the side in a project the actor
+        // belongs to, and the lower task id when both are, so a link across
+        // two projects still notifies a member of only one of them.
+        if ($eventName === TaskLinkModel::EVENT_CREATE_UPDATE && $oppositeTask) {
+            $userId = (int) $this->userSession->getId();
+            $otherIsMember = $this->projectPermissionModel->isMember((int) $oppositeTask['project_id'], $userId);
+            $thisIsMember  = $this->projectPermissionModel->isMember((int) $task['project_id'], $userId);
+
+            if ($otherIsMember && (!$thisIsMember || (int) $taskLink['task_id'] > (int) $taskLink['opposite_task_id'])) {
+                return false;
+            }
         }
 
         $projectId = (int) $task['project_id'];
@@ -224,16 +239,12 @@ class NotifyMeAction extends Base
             return false;
         }
 
-        $oppositeTask = !empty($taskLink['opposite_task_id'])
-            ? $this->taskModel->getById($taskLink['opposite_task_id'])
-            : null;
-
         return $this->deliver(
             $this->userSession->getId(),
             $projectId,
             'task_link',
             $eventName,
-            $this->buildSubject($project['name'], $task['title'], $task['id']),
+            $this->buildSubject($project['name'], $task['title'], $task['id'], $eventName),
             array(
                 'task'          => $task,
                 'project'       => $project,
@@ -284,8 +295,8 @@ class NotifyMeAction extends Base
      * active user. A disabled account has nobody meaningfully protected by
      * being notified, so it's excluded. Repeated failures against one
      * username are bounded by core's own bruteforce lockout
-     * (UserLockingModel, default 6 attempts / 15 minutes); this plugin
-     * relies on that instead of reimplementing rate limiting.
+     * (UserLockingModel, default 6 attempts / 15 minutes), and this plugin
+     * sends the email at most once per account per hour.
      *
      * No web-notification entry: like project.file.* above, core has no
      * title builder or redirect target for auth.failure.
@@ -306,6 +317,13 @@ class NotifyMeAction extends Base
             return false;
         }
 
+        // One email per account per hour. Core's lockout bounds failed logins and
+        // not mail, so anyone who knows a username could otherwise trigger repeated email.
+        $last = (int) $this->userMetadataModel->get((int) $user['id'], 'notifyme_auth_failure_at', 0);
+        if ($last > time() - 3600) {
+            return false;
+        }
+
         $html = $this->renderTemplate('auth_failure', array(
             'user'     => $user,
             'username' => $username,
@@ -316,9 +334,16 @@ class NotifyMeAction extends Base
             return false;
         }
 
-        $subject = sprintf('[NotifyMe] %s', t($this->actionLabel($eventName)));
+        $subject = sprintf('[%s] %s', \Kanboard\Plugin\NotifyMe\Product::get('product_name'), t($this->actionLabel($eventName)));
 
-        return $this->sendEmail($user, $subject, $html, $eventName);
+        // Recorded only after a send, so a failed send doesn't silence the next alert for an hour.
+        if (!$this->sendEmail($user, $subject, $html, $eventName)) {
+            return false;
+        }
+
+        $this->userMetadataModel->save((int) $user['id'], array('notifyme_auth_failure_at' => time()));
+
+        return true;
     }
 
     /**
@@ -352,9 +377,11 @@ class NotifyMeAction extends Base
             ? $this->helper->url->to('WikiController', 'detail', array(
                 'project_id' => $projectId,
                 'wiki_id'    => $wiki['id'],
+                'plugin'     => 'Wiki',
             ), '', true)
             : $this->helper->url->to('WikiController', 'show', array(
                 'project_id' => $projectId,
+                'plugin'     => 'Wiki',
             ), '', true);
 
         return $this->deliver(
@@ -403,9 +430,31 @@ class NotifyMeAction extends Base
      * here, matching how core's own MailNotification::getMailSubject() builds
      * subjects from raw project/task names.
      */
-    private function buildSubject($projectName, $taskTitle, $taskId)
+    private function buildSubject($projectName, $taskTitle, $taskId, $eventName)
     {
-        return sprintf('[%s] %s (#%d)', $projectName, $taskTitle, (int) $taskId);
+        $subject = sprintf('[%s] %s (#%d)', $projectName, $taskTitle, (int) $taskId);
+
+        // Extension point: another plugin (TagAlong adds its reply token here
+        // and may rebuild the subject from the other values) may adjust the
+        // subject. With no listener this changes nothing, and a listener that
+        // fails never stops the email. action is the untranslated label.
+        $data = array(
+            'subject'      => $subject,
+            'task_id'      => (int) $taskId,
+            'project_name' => (string) $projectName,
+            'task_title'   => (string) $taskTitle,
+            'event_name'   => (string) $eventName,
+            'action'       => $this->actionLabel($eventName),
+        );
+
+        try {
+            $this->hook->reference('notifyme:email:subject', $data);
+        } catch (\Throwable $e) {
+            $this->logger->error('NotifyMe: subject hook failed', array('error' => $e->getMessage()));
+            return $subject;
+        }
+
+        return (isset($data['subject']) && is_string($data['subject']) && $data['subject'] !== '') ? $data['subject'] : $subject;
     }
 
     private function actionLabel($eventName)
@@ -433,7 +482,8 @@ class NotifyMeAction extends Base
 
         $result = true;
 
-        if (!empty($user['email'])) {
+        // Vacation mode pauses email only. The Notifications menu entry below still records it.
+        if (!empty($user['email']) && !$this->notifyMeVacation->isMuted($userId, $projectId)) {
             $html = $this->renderTemplate($type, array_merge($templateVars, array('user' => $user)));
 
             if ($html === false) {
@@ -446,6 +496,11 @@ class NotifyMeAction extends Base
         // Web channel fires independently of the email outcome.
         if ($webEventData !== null) {
             $this->userUnreadNotificationModel->create($userId, $eventName, $webEventData);
+
+            // This path bypasses userNotificationModel::sendUserNotification(), so trim here too.
+            if (method_exists($this->userNotificationModel, 'trimUser')) {
+                $this->userNotificationModel->trimUser($userId);
+            }
         }
 
         return $result;
@@ -469,6 +524,30 @@ class NotifyMeAction extends Base
     }
 
     /**
+     * Reply-To for an email, or null to keep core's behavior (the logged-in
+     * user). Another plugin (TagAlong points it at the reply-by-email mailbox)
+     * may set it through the notifyme:email:reply_to hook. Login alerts never
+     * take part, since a reply to one can't be a task comment.
+     */
+    private function replyTo($eventName)
+    {
+        if ($eventName === 'auth.failure') {
+            return null;
+        }
+
+        $replyTo = null;
+
+        try {
+            $this->hook->reference('notifyme:email:reply_to', $replyTo);
+        } catch (\Throwable $e) {
+            $this->logger->error('NotifyMe: reply-to hook failed', array('error' => $e->getMessage()));
+            return null;
+        }
+
+        return (is_string($replyTo) && $replyTo !== '') ? $replyTo : null;
+    }
+
+    /**
      * Send an email, catching transport errors.
      */
     private function sendEmail(array $user, $subject, $html, $eventName)
@@ -476,9 +555,11 @@ class NotifyMeAction extends Base
         try {
             $this->emailClient->send(
                 $user['email'],
-                $user['name'],
+                $user['name'] ?: $user['username'],
                 $subject,
-                $html
+                $html,
+                null,
+                $this->replyTo($eventName)
             );
             return true;
         } catch (\Exception $e) {

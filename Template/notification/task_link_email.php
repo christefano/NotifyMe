@@ -9,4 +9,4 @@
 <?php endif; ?>
 <p><a href="<?php echo htmlspecialchars($task_url, ENT_QUOTES, 'UTF-8'); ?>"><?php echo t('View Task'); ?></a></p>
 <hr>
-<p><?php echo t('This is an automated notification from Kanboard.'); ?></p>
+<p><?php echo \Kanboard\Plugin\NotifyMe\Product::footer(); ?></p>
