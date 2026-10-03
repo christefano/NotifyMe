@@ -7,8 +7,8 @@ use Kanboard\Plugin\NotifyMe\Product;
 
 /**
  * Vacation mode: task emails to a user pause, everywhere (set by the user) or in one project
- * (set by that project's manager), until the user next logs in. Notifications-menu entries,
- * failed-login alerts, invitations, and password resets are never paused. Flags live in user
+ * (set by that project's manager), until the user next logs in. Notifications menu entries,
+ * failed login alerts, invitations, and password resets are never paused. Flags live in user
  * metadata, so no table is added.
  */
 class Vacation extends Base

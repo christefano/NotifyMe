@@ -2,7 +2,7 @@
 
 return array(
     'NotifyMe' => 'NotifyMe',
-    'Email and Notifications menu notifications for your own actions, and failed-login alerts to the account owner' => 'Email and Notifications menu notifications for your own actions, and failed-login alerts to the account owner',
+    'Email and Notifications menu notifications for your own actions, and failed login alerts to the account owner' => 'Email and Notifications menu notifications for your own actions, and failed login alerts to the account owner',
     'Project' => 'Project',
     'Task' => 'Task',
     'Description' => 'Description',

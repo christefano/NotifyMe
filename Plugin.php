@@ -126,7 +126,7 @@ class Plugin extends Base
 
     public function getPluginDescription()
     {
-        return t('Email and Notifications menu notifications for your own actions, and failed-login alerts to the account owner');
+        return t('Email and Notifications menu notifications for your own actions, and failed login alerts to the account owner');
     }
 
     public function getPluginAuthor()
@@ -141,7 +141,7 @@ class Plugin extends Base
 
     public function getPluginHomepage()
     {
-        return 'https://github.com/christefano/KanboardNotifyMe';
+        return 'https://github.com/christefano/NotifyMe';
     }
 
     public function getCompatibleVersion()
