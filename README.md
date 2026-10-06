@@ -3,6 +3,13 @@
 *NotifyMe* is a Kanboard plugin that sends email and Notifications menu notifications for your own actions (by default, Kanboard only notifies you about actions that others make). It also adds a vacation mode, notifies users of failed login attempts, and gives admins control of how many notifications are shown in the Notifications menu.
 
 
+## Screenshot
+
+*Settings -> Application settings -> NotifyMe* sets how many Notifications menu entries are kept per user.
+
+![NotifyMe section of Kanboard's Application settings page](screenshots/settings-application-notifyme-notifications-menu-limit.jpg)
+
+
 ## Quick start
 
 1. Extract `NotifyMe.zip` to `/path/to/kanboard/plugins/NotifyMe/`.

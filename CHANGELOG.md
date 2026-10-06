@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.1
+
+Adding screenshots. No new functionality or bug fixes.
+
 ## v1.2.0
 
 - Added a "Notifications menu entries kept per user" setting (100, 500, 1000, or Unlimited) in *Settings -> Application settings -> NotifyMe*. It defaults to 1000, so installing NotifyMe fixes a Notifications menu that won't open. Each new notification deletes a user's oldest entries beyond the limit, and saving the setting trims everyone's entries at once
