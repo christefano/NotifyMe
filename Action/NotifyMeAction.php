@@ -214,7 +214,7 @@ class NotifyMeAction extends Base
         }
 
         $oppositeTask = !empty($taskLink['opposite_task_id'])
-            ? $this->taskModel->getById($taskLink['opposite_task_id'])
+            ? $this->taskFinderModel->getById($taskLink['opposite_task_id'])
             : null;
 
         // TaskLinkModel::create()/update() dispatch this event once per side

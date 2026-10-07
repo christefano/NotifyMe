@@ -2,7 +2,9 @@
 
 ## v1.2.1
 
-Adding screenshots. No new functionality or bug fixes.
+- Added screenshots
+- Fixed a fatal error (`Call to undefined method Kanboard\Model\TaskModel::getById()`) every time someone created or updated a task link, such as "is blocked by". NotifyMe looked up the linked task on the wrong Kanboard model, so the link action stopped and the notification was never sent. It now looks the task up the way Kanboard does
+- Added a test that creates and removes a task link with NotifyMe loaded, and proved it fails on the old line
 
 ## v1.2.0
 
