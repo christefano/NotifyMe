@@ -45,6 +45,11 @@ class Plugin extends Base
         if (isset($_POST['notifyme_max_unread'])) {
             register_shutdown_function(function () {
                 try {
+                    // Only an admin can save this setting, so only an admin's post trims.
+                    if (! $this->userSession->isLogged() || ! $this->userSession->isAdmin()) {
+                        return;
+                    }
+
                     $options = $this->configModel->getAll();
                     $this->userNotificationModel->trimAllUnread(isset($options['notifyme_max_unread']) ? $options['notifyme_max_unread'] : \Kanboard\Plugin\NotifyMe\Model\UserNotificationModel::UNREAD_DEFAULT);
                 } catch (\Throwable $e) {
@@ -64,6 +69,7 @@ class Plugin extends Base
         // two-factor code is checked.
         $this->dispatcher->addListener(AuthenticationManager::EVENT_SUCCESS, function () {
             $userId = (int) $this->userSession->getId();
+            $setters = $userId > 0 ? $this->notifyMeVacation->getSetters($userId) : array();
 
             if ($userId > 0 && $this->notifyMeVacation->clearAll($userId)) {
                 $this->flash->success(t('Vacation mode turned off.'));
@@ -72,6 +78,16 @@ class Plugin extends Base
 
                 if (!empty($user)) {
                     $this->notifyMeVacation->sendNotice($user, array(), array(), false);
+
+                    // The manager who set a project flag hears that it is off, too.
+                    foreach ($setters as $projectId => $setterId) {
+                        $project = $this->projectModel->getById($projectId);
+                        $setter = $this->userModel->getById($setterId);
+
+                        if (!empty($project) && !empty($setter)) {
+                            $this->notifyMeVacation->sendNotice($user, $project, $setter, false, false);
+                        }
+                    }
                 }
             }
         });

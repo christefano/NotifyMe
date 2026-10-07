@@ -3,6 +3,11 @@
 ## v1.2.1
 
 - Added screenshots
+- A login that turns vacation mode off now also emails each project manager who set a project's vacation mode for that user, as the README said it did. The manager is kept in a new user metadata value, `notifyme_vacation_setter_<project id>`, that goes with the flag. A project flag set before this keeps no manager, so its login emails the user only
+- The trim after saving the "Notifications menu entries kept per user" setting now runs only when an admin posted it, where before any post that carried the field started a trim of every user's entries
+- Removed three email templates that were never used (`category_email.php`, `project_email.php`, and `timetracking_email.php`), since NotifyMe stopped sending those events in 1.1.0. They still said "This is an automated notification from Kanboard." and "hours"
+- README: fixed "Notification menu entries requires"
+- Added a test of the vacation notices (`specs/notifyme-test/vacation.sh`)
 - Fixed a fatal error (`Call to undefined method Kanboard\Model\TaskModel::getById()`) every time someone created or updated a task link, such as "is blocked by". NotifyMe looked up the linked task on the wrong Kanboard model, so the link action stopped and the notification was never sent. It now looks the task up the way Kanboard does
 - Added a test that creates and removes a task link with NotifyMe loaded, and proved it fails on the old line
 

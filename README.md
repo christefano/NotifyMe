@@ -63,7 +63,7 @@ Vacation mode is controlled three ways:
 
 1. A user turns it on for each project they belong to from their profile (in "Vacation mode" on their profile's sidebar) and a "Vacation mode is on" message is displayed.
 2. A project manager turns it on for a member in their project (in "Vacation mode" on the project's sidebar) and a "Vacation mode is on" message is displayed.
-3. Any login or browser visit with an already logged in browser turns Vacation mode off, shows a "Vacation mode turned off" message, and sends an email to the user and the project manager.
+3. Any login or browser visit with an already logged in browser turns Vacation mode off, shows a "Vacation mode turned off" message, and sends an email to the user and to each project manager who set vacation mode for them in a project. A project flag set before NotifyMe kept who set it emails the user only.
 
 Email notifications are paused, but notifications in the Notifications menu still accumulate so the user sees what happened when they get back. Flags are stored in user metadata (`notifyme_vacation`, `notifyme_vacation_project_<id>`).
 
@@ -76,7 +76,7 @@ Kanboard labels its emails `Auto-Submitted: auto-generated`, so compliant autore
 
 ## Limitations
 
-- Notification menu entries requires that notifications have a title or target, so email-only events don't appear in the Notifications menu.
+- Notifications menu entries require that notifications have a title or target, so email-only events don't appear in the Notifications menu.
 - Kanboard core doesn't have events for project create, update, and remove, category add and remove, and time-tracking entries, so none of these are currently supported.
 - NotifyMe is currently English-only. Contributions are welcome! Please fork [NotifyMe](https://github.com/christefano/NotifyMe) on GitHub and create a pull request.
 

@@ -47,7 +47,7 @@ class ProjectVacationController extends BaseController
         }
 
         $on = !empty($values['on']);
-        $this->notifyMeVacation->set($userId, $project['id'], $on);
+        $this->notifyMeVacation->set($userId, $project['id'], $on, $this->userSession->getId());
 
         $setter = $this->userModel->getById($this->userSession->getId());
         $this->notifyMeVacation->sendNotice($user, $project, $setter ?: array(), $on);
