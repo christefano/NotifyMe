@@ -2,13 +2,13 @@
 
 ## Requirements
 
-- Kanboard >= 1.2.20. No schema changes. User metadata holds the failed login limit and the vacation flags.
+- Kanboard >= 1.2.20. No schema changes. User metadata holds the failed login limit (`notifyme_auth_failure_at`) and the vacation flags (`notifyme_vacation`, `notifyme_vacation_project_<id>`, and `notifyme_vacation_setter_<id>`).
 - Working outgoing email in Kanboard's settings (since most notifications are emails).
 
 
 ## Install
 
-1. Extract `NotifyMe.zip` to `/path/to/kanboard/plugins/NotifyMe/`.
+1. Extract the release zip (`NotifyMe-v1.2.1.zip`) to `/path/to/kanboard/plugins/NotifyMe/`.
 2. Restart PHP-FPM (or your webserver) if Kanboard's plugin cache doesn't pick up the new files.
 3. Add a comment on a task in a project you belong to and check that the email arrives.
 

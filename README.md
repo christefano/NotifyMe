@@ -12,7 +12,7 @@
 
 ## Quick start
 
-1. Extract `NotifyMe.zip` to `/path/to/kanboard/plugins/NotifyMe/`.
+1. Extract the release zip (`NotifyMe-v1.2.1.zip`) to `/path/to/kanboard/plugins/NotifyMe/`.
 2. Restart PHP-FPM or your web server if Kanboard's plugin cache doesn't pick up the new files.
 3. Do something in a project like adding a comment. An email will arrive a moment later.
 
@@ -65,7 +65,7 @@ Vacation mode is controlled three ways:
 2. A project manager turns it on for a member in their project (in "Vacation mode" on the project's sidebar) and a "Vacation mode is on" message is displayed.
 3. Any login or browser visit with an already logged in browser turns Vacation mode off, shows a "Vacation mode turned off" message, and sends an email to the user and to each project manager who set vacation mode for them in a project. A project flag set before NotifyMe kept who set it emails the user only.
 
-Email notifications are paused, but notifications in the Notifications menu still accumulate so the user sees what happened when they get back. Flags are stored in user metadata (`notifyme_vacation`, `notifyme_vacation_project_<id>`).
+Email notifications are paused, but notifications in the Notifications menu still accumulate so the user sees what happened when they get back. Flags are stored in user metadata (`notifyme_vacation`, `notifyme_vacation_project_<id>`, and `notifyme_vacation_setter_<id>`, which holds the ID of the project manager who set that project's flag).
 
 Vacation mode covers email notifications from Kanboard and other plugins (core, Mailmagik, or [TagAlong](https://github.com/christefano/TagAlong)) since NotifyMe replaces Kanboard's `userNotificationModel` and skips only the email type.
 
@@ -146,7 +146,7 @@ NotifyMe works with other plugins from the same author:
 ## Compatibility
 
 - Kanboard >= 1.2.20
-- NotifyMe doesn't make any schema changes. User metadata holds the failed login limit (`notifyme_auth_failure_at`) and the vacation flags. The settings table holds `notifyme_max_unread`.
+- NotifyMe doesn't make any schema changes. User metadata holds the failed login limit (`notifyme_auth_failure_at`) and the vacation flags (`notifyme_vacation`, `notifyme_vacation_project_<id>`, and `notifyme_vacation_setter_<id>`). The settings table holds `notifyme_max_unread`.
 
 
 ## License

@@ -6,6 +6,7 @@
 - The trim after saving the "Notifications menu entries kept per user" setting now runs only when an admin posted it, where before any post that carried the field started a trim of every user's entries
 - Removed three email templates that were never used (`category_email.php`, `project_email.php`, and `timetracking_email.php`), since NotifyMe stopped sending those events in 1.1.0. They still said "This is an automated notification from Kanboard." and "hours"
 - README: fixed "Notification menu entries requires"
+- README and INSTALL name the release zip (`NotifyMe-v1.2.1.zip`) and list the `notifyme_vacation_setter_<id>` user metadata key
 - Added a test of the vacation notices (`specs/notifyme-test/vacation.sh`)
 
 ## v1.2.1
