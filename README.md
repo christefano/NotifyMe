@@ -12,7 +12,7 @@
 
 ## Quick start
 
-1. Extract the release zip (`NotifyMe-v1.2.1.zip`) to `/path/to/kanboard/plugins/NotifyMe/`.
+1. Extract the release zip to `/path/to/kanboard/plugins/NotifyMe/`.
 2. Restart PHP-FPM or your web server if Kanboard's plugin cache doesn't pick up the new files.
 3. Do something in a project like adding a comment. An email will arrive a moment later.
 
@@ -135,19 +135,21 @@ NotifyMe doesn't change any Kanboard core files or any other plugin's files, and
 It also listens to Kanboard's task, subtask, comment, file, task link, project file, and login events, and to the Wiki plugin's `wikipage.*` events. Listening doesn't change what Kanboard or the other plugin does.
 
 
-## Other plugins
-
-NotifyMe works with other plugins from the same author:
-
-- *NotKanboard* helps whitelabel Kanboard and replaces "Kanboard" in page titles, outgoing emails, and a few other places with your own product name. NotifyMe's footer uses that name.
-- *TagAlong* supercharges Kanboard email support by filtering autoreplies, email signatures, and quoted text from incoming email, points Reply-To to the reply-by-email address, and adds a reply token to NotifyMe's and Kanboard's subjects, so replies become task comments through Mailmagik.
-
-
 ## Compatibility
 
 - Kanboard >= 1.2.20
 - NotifyMe doesn't make any schema changes. User metadata holds the failed login limit (`notifyme_auth_failure_at`) and the vacation flags (`notifyme_vacation`, `notifyme_vacation_project_<id>`, and `notifyme_vacation_setter_<id>`). The settings table holds `notifyme_max_unread`.
 
+
+## Other plugins
+
+NotifyMe works with other plugins from the same author:
+
+- [BusyBee](https://github.com/christefano/BusyBee) adds one-click questions about your projects and tasks, such as "What is late?" and "What is blocked?", to the top of Kanboard's *My* dashboard pages. If SortaFolders is installed, the same questions also show at the top of its *My folders* page.
+- [CommentTater](https://github.com/christefano/CommentTater) lets you update a task's fields while posting a comment. Changes made to the task from the comment are shown on the posted comment and are included in Kanboard email notifications, too.
+- [NotKanboard](https://github.com/christefano/NotKanboard) helps whitelabel Kanboard and replaces "Kanboard" in page titles, outgoing emails, and a few other places with your own product name.
+- [SortaFolders](https://github.com/christefano/SortaFolders) sorts projects into folders. Kanboard doesn't let you group projects together or classify a project by putting it in another project, so *SortaFolders* adds nestable folders up to 5 levels deep and a dedicated *My folders* page on your dashboard that lists your projects by folder.
+- [TagAlong](https://github.com/christefano/TagAlong) supercharges Kanboard email support by filtering autoreplies, email signatures, and quoted text from incoming mail, points Reply-To to the reply-by-email address, and adds a reply token to email subjects, so replies become task comments through [Mailmagik](https://github.com/creecros/Mailmagik/).
 
 ## License
 
